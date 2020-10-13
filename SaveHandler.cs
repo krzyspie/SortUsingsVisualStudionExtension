@@ -1,7 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Commanding;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Editor.Commanding;
@@ -30,11 +34,19 @@ namespace FirstSimpleExtension
 
         public bool ExecuteCommand(SaveCommandArgs args, CommandExecutionContext executionContext)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             // Do not execute action if file is not a cs file
             if (!IsCsFile(args))
             {
                 return true;
             }
+
+            if (!IsSortOptionEnabled())
+            {
+                return true;
+            }
+
 
             if (FileNotChanged(args.SubjectBuffer.Properties))
             {
@@ -75,10 +87,44 @@ namespace FirstSimpleExtension
             return true;
         }
 
+        private static bool IsSortOptionEnabled()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            try
+            {
+                IVsShell shell = Package.GetGlobalService(typeof(SVsShell)) as IVsShell;
+
+                if (shell != null)
+                {
+                    IVsPackage package;
+                    
+                    if(ErrorHandler.Succeeded(shell.LoadPackage(Guid.Parse("2932cf68-cf16-4cbf-95c7-eda5cac6579f"), out package)))
+                    {
+                        var pck = package as FirstSimpleExtensionPackage;
+                        return pck.SortUsingsOnSave;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.Write(ex);
+            }
+
+            return false;
+        }
+
         private static bool FileNotChanged(PropertyCollection properties)
         {
-            ITextDocument document;
-            properties.TryGetProperty(typeof(ITextDocument), out document);
+            ITextDocument document = null;
+
+            try
+            {
+                properties.TryGetProperty(typeof(ITextDocument), out document);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.Write(ex);
+            }
 
             return document != null && !document.IsDirty;
         }
@@ -132,9 +178,16 @@ namespace FirstSimpleExtension
 
         private void RemoveUnnecessaryUsingsAndSort(SaveCommandArgs args)
         {
-            IEditorCommandHandlerService service = _commandService.GetService(args.TextView);
-            var cmd = new CodeCleanUpDefaultProfileCommandArgs(args.TextView, args.SubjectBuffer);
-            service.Execute((v, b) => cmd, null);
+            try
+            {
+                IEditorCommandHandlerService service = _commandService.GetService(args.TextView);
+                var cmd = new CodeCleanUpDefaultProfileCommandArgs(args.TextView, args.SubjectBuffer);
+                service.Execute((v, b) => cmd, null);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.Write(ex);
+            }
         }
 
         public CommandState GetCommandState(SaveCommandArgs args)

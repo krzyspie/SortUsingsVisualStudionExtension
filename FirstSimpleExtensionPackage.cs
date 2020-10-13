@@ -26,12 +26,23 @@ namespace FirstSimpleExtension
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [Guid(FirstSimpleExtensionPackage.PackageGuidString)]
     [ProvideMenuResource("Menus.ctmenu", 1)]
+    [ProvideOptionPage(typeof(BleepaSortUsingsOnSaveOption), "Bleepa Sort Usings Extension", "Options", 0, 0, false)]
     public sealed class FirstSimpleExtensionPackage : AsyncPackage
     {
         /// <summary>
         /// FirstSimpleExtensionPackage GUID string.
         /// </summary>
         public const string PackageGuidString = "2932cf68-cf16-4cbf-95c7-eda5cac6579f";
+
+
+        public bool SortUsingsOnSave
+        {
+            get
+            {
+                BleepaSortUsingsOnSaveOption page = (BleepaSortUsingsOnSaveOption)GetDialogPage(typeof(BleepaSortUsingsOnSaveOption));
+                return page.SortUsingsOnSave;
+            }
+        }
 
         #region Package Members
 
